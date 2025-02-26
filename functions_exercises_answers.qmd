@@ -1,0 +1,207 @@
+---
+title: "Custom Functions Exercises"
+
+date: "today"
+
+format: html
+editor: visual
+---
+
+## A. Workshop exercises
+
+### A.1. Load tidyverse
+
+```{r}
+library(tidyverse)
+```
+
+### A.2. Set themes
+
+Run this chunk of code to set custom themes (`theme_bar` and `theme_line`) for our later graphics.
+
+```{r}
+theme_bar <- theme_minimal() +
+    theme(strip.text = element_text(size = 10.5, face = "bold", 
+                                  color = "grey30", margin = margin(b=10)),
+        axis.text = element_text(size = 10),
+        axis.title.y = element_blank(),
+        axis.title.x = element_text(margin = margin(t=10), color = "grey30"),
+        axis.line.x = element_line(color = "grey30"),
+        panel.grid = element_blank(),
+        panel.grid.major.x = element_line(color = "grey80", linetype = "dotted"),
+        panel.spacing = unit(1,"cm"),
+        legend.title = element_blank())
+
+theme_line <- theme_minimal() +
+  theme(axis.text = element_text(size = 10),
+        axis.title.x = element_blank(),
+        axis.title.y = element_text(margin = margin(r=10), color = "grey30"),
+        panel.grid = element_blank(),
+        panel.grid.major.y = element_line(color = "grey80"),
+        legend.title = element_blank())
+```
+
+### A.3. Load data
+
+Today we'll be using a fake data set that includes student athlete GPAs from 2014 to 2024, broken down by sport and student status, sex, and race/ethnicity.
+
+*Read in the "college_student_athletes.csv" file*
+
+```{r}
+athletes <- read_csv("college_student_athletes.csv")
+
+athletes
+```
+
+### A.4. Aggregate
+
+For future analysis we want four new data frames that include a **count of athletes** and their **average GPAs**:
+
+1.  by year and sport
+
+2.  by year, sport, and status
+
+3.  by year, sport, and sex
+
+4.  by year, sport, and race/ethnicity
+
+*HINT: Use* `group_by()` *and* `summarize()`
+
+```{r}
+# by year and sport
+year_sport <- athletes |> 
+  group_by(Year, Sport) |> 
+  summarize(n_athletes = n(),
+            avg_GPA = mean(GPA))
+year_sport
+
+# by year, sport, and status/sex/race
+agg <- function(myvar) {
+  athletes |> 
+    group_by(Year, Sport, {{ myvar }}) |> 
+    summarize(n_athletes = n(),
+              avg_GPA = mean(GPA))
+}
+
+# run function
+by_status <- agg(Status)
+by_sex <- agg(Sex)
+by_race <- agg(Race)
+
+```
+
+### A.5. Bar charts
+
+Using a function, build a series of bar charts that show the number of athletes who played each sport faceted by status, sex, and race/ethnicity. Your function should also allow you to highlight one or more sports using fill color. You can limit the data to 2024.
+
+```{r}
+
+# build function
+fill_bars <- function(mydata, mysports, myvar){
+  mydata |> 
+  filter(Year == 2024) |> 
+  ggplot(aes(n_athletes, 
+             reorder(Sport, n_athletes),
+             fill = Sport %in% mysports)) +
+  geom_col(show.legend = F) + 
+  facet_wrap(vars({{ myvar }})) +
+  scale_fill_manual(values = c("lightgrey","steelblue")) +
+  theme_bar
+}
+
+# run function
+fill_bars(by_status, c("Lacrosse","Tennis"), Status)
+fill_bars(by_sex, c("Baseball","Soccer"), Sex)
+fill_bars(by_race, "Swimming", Race)
+
+```
+
+### A.6. Line chart
+
+Create a line chart using the `year_sport` data frame that shows how average GPAs have changed over time by sport. Then grey out all the lines to prepare to highlight in the next step.
+
+```{r}
+# create color and reference vectors 
+mycolors <- rep("lightgrey", 7) 
+
+mysports <- year_sport |> 
+  pull(Sport) |> 
+  unique()
+
+# plot 
+year_sport |>   
+  ggplot(aes(Year, avg_GPA, color = Sport)) +   
+  geom_line(linewidth = 1) + 
+  scale_y_continuous(expand = c(0,0), limits = c(2.7,3.5)) +
+  scale_x_continuous(breaks = seq(2014,2024,2)) +
+  scale_color_manual(values = mycolors) +
+  theme_line
+```
+
+Build a function that highlights one line at a time, keeping all other lines grey.
+
+```{r}
+
+# build function 
+color_lines <- function(x) {
+
+  mycolors[x] <- "coral2"
+  
+  myplot <- year_sport |>     
+    ggplot(aes(Year, avg_GPA, color = Sport)) +     
+    geom_line(linewidth = 1) +     
+    geom_line(data = year_sport |> filter(Sport == mysports[x]),
+              linewidth = 1.5) +     
+  scale_y_continuous(expand = c(0,0), limits = c(2.7,3.5)) +
+  scale_x_continuous(breaks = seq(2014,2024,2)) +
+  scale_color_manual(values = mycolors) +
+  theme_line
+  
+  ggsave(plot = myplot,
+         filename = paste0("sport_line_",x,".png"),
+         width = 6, height = 4,
+         bg = "white")
+  
+  myplot
+}  
+
+# run function 
+map(1:7, color_lines)
+```
+
+## B. On your own
+
+Use the aggregated data frames you created in section A.4. to build plots showing the breakdown of average GPA:
+
+-   faceted by status in 2024
+
+-   faceted by sex in 2020
+
+-   faceted by race in 2015
+
+*Create the three plots listed above (they can be horizontal bar charts, but you might also try a dot plot using* `geom_point()` *instead). Test your code with the first one, then build a function to create the other two. HINT: Your function inputs should be the aggregated data frame, year, and grouping variable* (`Status` / `Sex` / `Race`).
+
+```{r}
+
+# test it
+by_status |> 
+  filter(Year == 2024) |> 
+  ggplot(aes(avg_GPA, reorder(Sport, avg_GPA))) +
+  geom_point() +
+  facet_wrap(~Status) + 
+  ggtitle(2024)
+
+# build function
+plot_points <- function(mydf, myyear, myvar) {
+  mydf |> 
+    filter(Year == myyear) |> 
+    ggplot(aes(avg_GPA, reorder(Sport, avg_GPA))) +
+    geom_point() +
+    facet_wrap(vars({{ myvar }})) +
+    ggtitle(myyear)
+}
+
+# run function
+plot_points(by_sex, 2020, Sex)
+plot_points(by_race, 2015, Race)
+```
