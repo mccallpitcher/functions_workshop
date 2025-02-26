@@ -73,7 +73,7 @@ For future analysis we want four new data frames that include a **count of athle
 
 ### A.5. Bar charts
 
-Using a function, build a series of bar charts that show the number of athletes who played each sport faceted by status, sex, and race/ethnicity. Your function should also allow you to highlight one or more sports using fill color. You can limit the data to 2024.
+Using a function, build a set of bar charts that show the number of athletes who played each sport in 2024 faceted by status, sex, then race/ethnicity. Your function should also allow you to highlight one or more sports using fill color.
 
 ```{r}
 
